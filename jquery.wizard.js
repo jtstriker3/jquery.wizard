@@ -6,7 +6,8 @@
 		            navigationButtonClass: 'btn',
 		            headerSelector: null,
 		            errorSelector: null,
-		            progressBarSelector: null
+		            progressBarSelector: null,
+		            contentLoaded: null
 		        };
 
     // The actual plugin constructor
@@ -26,12 +27,7 @@
         this._name = pluginName;
 
         this.Next = function () {
-            var stepValidateFunc = eval(wizardSelf.current.data('step-validate'));
-            var valid = true;
-            if (typeof (stepValidateFunc) == 'function')
-                valid = stepValidateFunc.call(wizardSelf.current);
-
-            if (valid) {
+            if (wizardSelf.validate()) {
                 var currentStepCount = parseInt(wizardSelf.current.data('wizard-step'));
                 wizardSelf.hideError();
                 wizardSelf.current.fadeOut(function () {
@@ -42,15 +38,24 @@
                         $('#submitButton').show();
                     }
                     $('#previousButton').removeAttr('disabled');
-                    wizardSelf.SetHeader();
+                    wizardSelf.setHeader();
                     wizardSelf.setProgress();
                 });
-            } else {
-                wizardSelf.showError();
             }
         }
 
-        this.Previous = function () {
+        this.validate = function () {
+            var stepvalidateFunc = eval(wizardSelf.current.data('step-validate'));
+            var valid = true;
+            if (typeof (stepvalidateFunc) == 'function') {
+                valid = stepvalidateFunc.call(wizardSelf.current);
+            }
+            if (!valid)
+                wizardSelf.showError();
+            return valid;
+        }
+
+        this.previous = function () {
             var currentStepCount = parseInt(wizardSelf.current.data('wizard-step'));
 
             wizardSelf.current.fadeOut(function () {
@@ -61,23 +66,32 @@
                 }
                 $('#nextButton').show();
                 $('#submitButton').hide();
-                wizardSelf.SetHeader();
+                wizardSelf.setHeader();
                 wizardSelf.setProgress();
             });
         }
 
-        this.SetHeader = function () {
+        this.setHeader = function () {
             var headerText = wizardSelf.current.data('wizard-header-text');
             var headerSelector = wizardSelf.getOptionVal(wizardSelf.options.headerSelector);
             $(headerSelector).html(headerText);
+            wizardSelf.runContentLoaded($(headerSelector));
+
         }
 
         this.showError = function () {
-            var errorSelector = wizardSelf.getOptionVal(wizardSelf.options.errorSelector);
-            $(errorSelector).html(wizardSelf.current.data('step-error'));
+            var $errorSelector = $(wizardSelf.getOptionVal(wizardSelf.options.errorSelector));
+            $errorSelector.html(wizardSelf.current.data('step-error'));
             $(wizardSelf.element).find('[data-toggle-error="true"]').show();
-            $(errorSelector).fadeIn();
+            $errorSelector.fadeIn();
+            wizardSelf.runContentLoaded($errorSelector);
 
+        }
+
+        this.runContentLoaded = function ($selector) {
+            var contenteLoadedFunction = eval(wizardSelf.getOptionVal(wizardSelf.options.contentLoaded));
+            if (typeof (contenteLoadedFunction) == 'function')
+                contenteLoadedFunction.call($selector);
         }
 
         this.hideError = function () {
@@ -117,7 +131,7 @@
             return typeof (option) == 'function' ? option.call(wizardSelf.element) : option;
         }
 
-        this.navButtons = '<input type="button" style="float: left" disabled="disabled" class="' + this.options.navigationButtonClass + '" value="&larr; Previous" id="previousButton"/>';
+        this.navButtons = '<input type="button" style="float: left" disabled="disabled" class="' + this.options.navigationButtonClass + '" value="&larr; previous" id="previousButton"/>';
         this.navButtons += '<input type="button" style="float: right;" class="' + this.options.navigationButtonClass + '" value="Next &rarr;" id="nextButton"/>';
         this.navButtons += '<input type="submit" style="display: none; float: right;" class="' + this.options.navigationButtonClass + '" value="Submit" id="submitButton"/>';
 
@@ -138,9 +152,10 @@
         //Wireup Nav Events;
 
         $('#nextButton').click(this.Next);
-        $('#previousButton').click(this.Previous);
+        $('#previousButton').click(this.previous);
+        $('#submitButton').click(this.validate);
         this.current = this.wizardSteps.first().fadeIn();
-        this.SetHeader();
+        this.setHeader();
         this.setProgress();
 
     };
@@ -173,6 +188,9 @@ $(document).ready(function () {
         },
         progressBarSelector: function () {
             return $(this).data('wizardProgress');
+        },
+        contentLoaded: function () {
+            return $(this).data('wizardContentLoaded');
         }
     });
 });
